@@ -15,13 +15,49 @@
  */
 package nl.knaw.dans.easy.authinfo
 
-import scala.util.{ Try, Success }
+import java.nio.file.Path
+import java.util.UUID
 
-class EasyAuthInfoApp(wiring: ApplicationWiring) extends AutoCloseable {
+import nl.knaw.dans.easy.authinfo.components.FileItems
+import nl.knaw.dans.lib.logging.DebugEnhancedLogging
+import org.json4s.JsonAST.JValue
+import org.json4s.JsonDSL._
 
+import scala.util.{ Failure, Success, Try }
+import scala.xml.Node
 
-  // The application's API here. This is what is used by driver or entry-point objects.
+trait EasyAuthInfoApp extends AutoCloseable with DebugEnhancedLogging with ApplicationWiring {
 
+  def rightsOf(bagId: UUID, path: Path): Try[Option[JValue]] = {
+    for {
+      filesXml <- bagStore.loadFilesXML(bagId)
+      // TODO skip the rest if path not in files.xml, see find in FileItems.rightsOf
+      ddm <- bagStore.loadDDM(bagId)
+      ddmProfile <- getTag(ddm, "profile")
+      dateAvailable <- getTag(ddmProfile, "available").map(_.text)
+      rights <- new FileItems(ddmProfile, filesXml).rightsOf(path)
+      bagInfo <- bagStore.loadBagInfo(bagId)
+      owner <- getDepositor(bagInfo)
+    } yield rights.map(value =>
+      ("itemId" -> s"$bagId/$path") ~
+        ("owner" -> owner) ~
+        ("dateAvailable" -> dateAvailable) ~
+        ("accessibleTo" -> value.accessibleTo) ~
+        ("visibleTo" -> value.visibleTo)
+    )
+  }
+
+  private def getTag(node: Node, tag: String): Try[Node] = {
+    Try { (node \ tag).head }
+      .recoverWith { case t => Failure(new Exception(s"<ddm:$tag> not found in dataset.xml [${ t.getMessage }]")) }
+  }
+
+  private def getDepositor(bagInfoMap: BagInfo) = {
+    Try(bagInfoMap("EASY-User-Account"))
+      .recoverWith { case t => Failure(new Exception(s"'EASY-User-Account' (case sensitive) not found in bag-info.txt [${ t.getMessage }]")) }
+  }
+
+  // TODO remove init and close (+ AutoCloseable interface)
   def init(): Try[Unit] = {
     // Do any initialization of the application here. Typical examples are opening
     // databases or connecting to other services.
@@ -30,5 +66,11 @@ class EasyAuthInfoApp(wiring: ApplicationWiring) extends AutoCloseable {
 
   override def close(): Unit = {
 
+  }
+}
+
+object EasyAuthInfoApp {
+  def apply(conf: Configuration): EasyAuthInfoApp = new EasyAuthInfoApp {
+    override lazy val configuration: Configuration = conf
   }
 }

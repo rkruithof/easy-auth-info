@@ -2,15 +2,12 @@ easy-auth-info
 ===========
 [![Build Status](https://travis-ci.org/DANS-KNAW/easy-auth-info.png?branch=master)](https://travis-ci.org/DANS-KNAW/easy-auth-info)
 
-<!-- Remove this comment and extend the descriptions below -->
-
 
 SYNOPSIS
 --------
 
-    easy-auth-info (synopsis of command line parameters)
-    easy-auth-info (... possibly multiple lines for subcommands)
-
+    easy-auth-info <uuid>/<path>
+    easy-auth-info run-service
 
 DESCRIPTION
 -----------
@@ -30,15 +27,37 @@ ARGUMENTS
         --help   Show help message
     ---
 
+
+HTTP service
+------------
+
+When started with the sub-command `run-service` a REST API becomes available with HTTP method `GET` only.
+In a path pattern `*` refers to any completion of the path, placeholders for variables start with a colon,
+and optional parts are enclosed in square brackets.
+
+Path       | Action
+-----------|------------------------------------
+`/`        | Return a simple message to indicate that the service is up: "EASY Auth Info Service running..."
+`/:uuid/*` | Return the rights for the file from the bag with bag-id `:uuid` and bag local path `*`
+
+
 EXAMPLES
 --------
 
-    easy-auth-info -o value
+    easy-auth-info 40594b6d-8378-4260-b96b-13b57beadf7c/data/pakbon.xml
+    curl http://localhost:20170/40594b6d-8378-4260-b96b-13b57beadf7c/data/pakbon.xml
 
 
 INSTALLATION AND CONFIGURATION
 ------------------------------
 
+
+### Depending on services
+
+* [easy-bag-store](https://github.com/DANS-KNAW/easy-bag-store/)
+
+
+### Steps
 
 1. Unzip the tarball to a directory of your choice, typically `/usr/local/`
 2. A new directory called easy-auth-info-<version> will be created

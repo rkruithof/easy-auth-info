@@ -15,15 +15,53 @@
  */
 package nl.knaw.dans.easy.authinfo
 
+import java.nio.file.{ Path, Paths }
+import java.util.UUID
+
 import nl.knaw.dans.lib.logging.DebugEnhancedLogging
+import org.eclipse.jetty.http.HttpStatus._
+import org.json4s.JsonAST.JValue
+import org.json4s.native.JsonMethods.{ pretty, render }
 import org.scalatra._
 
+import scala.util.{ Failure, Success, Try }
+import scalaj.http.HttpResponse
+
 class EasyAuthInfoServlet(app: EasyAuthInfoApp) extends ScalatraServlet with DebugEnhancedLogging {
-  import app._
-  import logger._
 
   get("/") {
     contentType = "text/plain"
     Ok("EASY Auth Info Service running...")
+  }
+
+  get("/:uuid/*") {
+    contentType = "application/json"
+    (getUUID, getPath) match {
+      case (Success(_), Success(None)) => BadRequest("file path is empty")
+      case (Success(uuid), Success(Some(path))) => respond(uuid, path, app.rightsOf(uuid, path))
+      case (Failure(t), _) => BadRequest(t.getMessage)
+      case _ => InternalServerError("not expected exception")
+    }
+  }
+
+  private def getUUID = {
+    Try { UUID.fromString(params("uuid")) }
+  }
+
+  private def getPath = Try {
+    multiParams("splat").find(_.trim.nonEmpty).map(Paths.get(_))
+  }
+
+  private def respond(uuid: UUID, path: Path, rights: Try[Option[JValue]]) = {
+    rights match {
+      case Success(Some(json)) => Ok(pretty(render(json)))
+      case Success(None) => NotFound(s"$uuid/$path does not exist")
+      case Failure(HttpStatusException(message, HttpResponse(_, SERVICE_UNAVAILABLE_503, _))) => ServiceUnavailable(message)
+      case Failure(HttpStatusException(message, HttpResponse(_, REQUEST_TIMEOUT_408, _))) => RequestTimeout(message)
+      case Failure(HttpStatusException(message, HttpResponse(_, NOT_FOUND_404, _))) if message.startsWith("Bag ") => NotFound(s"$uuid does not exist")
+      case Failure(t) =>
+        logger.error(t.getMessage, t)
+        InternalServerError("not expected exception")
+    }
   }
 }

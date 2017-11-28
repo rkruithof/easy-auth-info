@@ -15,22 +15,21 @@
  */
 package nl.knaw.dans.easy.authinfo
 
-import java.net.URI
+import java.nio.file.{ Files, Path, Paths }
+import java.util.UUID
 
-import nl.knaw.dans.easy.authinfo.components.BagStoreComponent
-import nl.knaw.dans.lib.logging.DebugEnhancedLogging
+import org.apache.commons.io.FileUtils
+import org.scalatest.{ BeforeAndAfterEach, FlatSpec, Inside, Matchers }
 
-/**
- * Initializes and wires together the components of this application.
- */
-trait ApplicationWiring extends BagStoreComponent {
+trait TestSupportFixture extends FlatSpec with Matchers with Inside with BeforeAndAfterEach {
 
-  /**
-   * the application configuration
-   */
-  val configuration: Configuration
-
-  override val bagStore: BagStore = new BagStore {
-    override val baseUri: URI = new URI(configuration.properties.getString("bag-store.url"))
+  lazy val testDir: Path = {
+    val path = Paths.get(s"target/test/${ getClass.getSimpleName }").toAbsolutePath
+    FileUtils.deleteQuietly(path.toFile)
+    Files.createDirectories(path)
+    path
   }
+
+  val uuidCentaur: UUID = UUID.fromString("9da0541a-d2c8-432e-8129-979a9830b427")
+  val uuidAnonymized: UUID = UUID.fromString("1afcc4e9-2130-46cc-8faf-2663e199b218")
 }

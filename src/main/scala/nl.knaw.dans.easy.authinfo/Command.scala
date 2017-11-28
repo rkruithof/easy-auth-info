@@ -15,13 +15,18 @@
  */
 package nl.knaw.dans.easy.authinfo
 
+import java.io.FileNotFoundException
+import java.nio.file.Path
+import java.util.UUID
+
 import nl.knaw.dans.lib.error._
 import nl.knaw.dans.lib.logging.DebugEnhancedLogging
+import org.json4s.native.JsonMethods.{ pretty, render }
 import resource._
 
 import scala.language.reflectiveCalls
 import scala.util.control.NonFatal
-import scala.util.{ Failure, Try }
+import scala.util.{ Failure, Success, Try }
 
 object Command extends App with DebugEnhancedLogging {
   type FeedBackMessage = String
@@ -30,7 +35,7 @@ object Command extends App with DebugEnhancedLogging {
   val commandLine: CommandLineOptions = new CommandLineOptions(args, configuration) {
     verify()
   }
-  val app = new EasyAuthInfoApp(new ApplicationWiring(configuration))
+  val app = EasyAuthInfoApp(configuration)
 
   managed(app)
     .acquireAndGet(app => {
@@ -46,11 +51,22 @@ object Command extends App with DebugEnhancedLogging {
   private def runSubcommand(app: EasyAuthInfoApp): Try[FeedBackMessage] = {
     commandLine.subcommand
       .collect {
-//      case subcommand1 @ subcommand.subcommand1 => // handle subcommand1
-//      case None => // handle command line without subcommands
         case commandLine.runService => runAsService(app)
+        case file @ commandLine.file => executeFileCommand(app, file.path())
       }
       .getOrElse(Failure(new IllegalArgumentException(s"Unknown command: ${ commandLine.subcommand }")))
+  }
+
+  private def executeFileCommand(app: EasyAuthInfoApp, fullPath: Path) = {
+    (for {
+      root <- Try(Option(fullPath.getRoot).get).recoverWith { case _ => Failure(new Exception(s"no root element found in [$fullPath]")) }
+      uuid <- Try(UUID.fromString(root.toString)).recoverWith { case t => Failure(new Exception(s"root is not a valid uuid [$fullPath]", t)) }
+      subPath = fullPath.relativize(root)
+      rightsOf <- app.rightsOf(uuid, subPath)
+    } yield rightsOf match {
+      case Some(rights) => Success(pretty(render(rights)))
+      case None => Failure(new FileNotFoundException(fullPath.toString))
+    }).flatten
   }
 
   private def runAsService(app: EasyAuthInfoApp): Try[FeedBackMessage] = Try {

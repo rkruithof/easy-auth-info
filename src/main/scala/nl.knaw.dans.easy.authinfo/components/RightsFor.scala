@@ -13,26 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package nl.knaw.dans.easy
+package nl.knaw.dans.easy.authinfo.components
 
-import scala.util.{ Failure, Success, Try }
-import scalaj.http.HttpResponse
-
-package object authinfo {
-
-  type BagInfo = Map[String, String]
-
-  case class HttpStatusException(msg: String, response: HttpResponse[String])
-    extends Exception(s"$msg - ${ response.statusLine }, details: ${ response.body }")
-
-  implicit class TryExtensions2[T](val t: Try[T]) extends AnyVal {
-    // TODO candidate for dans-scala-lib
-    def unsafeGetOrThrow: T = {
-      t match {
-        case Success(value) => value
-        case Failure(throwable) => throw throwable
-      }
-    }
-  }
+object RightsFor extends Enumeration {
+  type Margin = Value
+  val NONE, KNOWN, ANONYMOUS, RESTRICTED_GROUP, RESTRICTED_REQUEST = Value
 }
-
