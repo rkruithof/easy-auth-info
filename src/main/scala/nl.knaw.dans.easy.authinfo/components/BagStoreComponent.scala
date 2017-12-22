@@ -16,6 +16,7 @@
 package nl.knaw.dans.easy.authinfo.components
 
 import java.net.{ URI, URL, URLEncoder }
+import java.nio.file.Paths
 import java.util.UUID
 
 import nl.knaw.dans.easy.authinfo.{ BagInfo, HttpStatusException }
@@ -23,6 +24,7 @@ import nl.knaw.dans.easy.authinfo.{ BagInfo, HttpStatusException }
 import scala.util.{ Failure, Success, Try }
 import scala.xml.{ Elem, XML }
 import scalaj.http.Http
+import nl.knaw.dans.easy.authinfo.escapePath
 
 trait BagStoreComponent {
 
@@ -58,7 +60,7 @@ trait BagStoreComponent {
     }
 
     private def toURL(bagId: UUID, path: String): Try[URL] = Try {
-      val f = URLEncoder.encode(path, "UTF8")
+      val f = escapePath(Paths.get(path))
       baseUri.resolve(s"bags/$bagId/$f").toURL
     }
   }
