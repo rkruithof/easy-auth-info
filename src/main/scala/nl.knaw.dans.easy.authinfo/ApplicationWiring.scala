@@ -18,7 +18,6 @@ package nl.knaw.dans.easy.authinfo
 import java.net.URI
 
 import nl.knaw.dans.easy.authinfo.components.BagStoreComponent
-import nl.knaw.dans.lib.logging.DebugEnhancedLogging
 
 /**
  * Initializes and wires together the components of this application.

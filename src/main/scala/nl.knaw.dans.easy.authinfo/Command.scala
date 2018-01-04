@@ -16,7 +16,7 @@
 package nl.knaw.dans.easy.authinfo
 
 import java.io.FileNotFoundException
-import java.nio.file.Path
+import java.nio.file.{ Path, Paths }
 import java.util.UUID
 
 import nl.knaw.dans.lib.error._
@@ -31,7 +31,7 @@ import scala.util.{ Failure, Success, Try }
 object Command extends App with DebugEnhancedLogging {
   type FeedBackMessage = String
 
-  val configuration = Configuration()
+  val configuration = Configuration(Paths.get(System.getProperty("app.home")))
   val commandLine: CommandLineOptions = new CommandLineOptions(args, configuration) {
     verify()
   }

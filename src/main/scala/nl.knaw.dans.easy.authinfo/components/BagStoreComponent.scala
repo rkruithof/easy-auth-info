@@ -15,16 +15,15 @@
  */
 package nl.knaw.dans.easy.authinfo.components
 
-import java.net.{ URI, URL, URLEncoder }
+import java.net.{ URI, URL }
 import java.nio.file.Paths
 import java.util.UUID
 
-import nl.knaw.dans.easy.authinfo.{ BagInfo, HttpStatusException }
+import nl.knaw.dans.easy.authinfo.{ BagInfo, HttpStatusException, escapePath }
 
 import scala.util.{ Failure, Success, Try }
 import scala.xml.{ Elem, XML }
 import scalaj.http.Http
-import nl.knaw.dans.easy.authinfo.escapePath
 
 trait BagStoreComponent {
 

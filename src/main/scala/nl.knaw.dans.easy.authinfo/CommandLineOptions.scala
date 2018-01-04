@@ -15,7 +15,7 @@
  */
 package nl.knaw.dans.easy.authinfo
 
-import java.nio.file.{ Path, Paths }
+import java.nio.file.Path
 import java.util.UUID
 
 import org.rogach.scallop.{ ScallopConf, ScallopOption, Subcommand, ValueConverter, singleArgConverter }
