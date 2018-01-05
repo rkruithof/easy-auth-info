@@ -23,7 +23,7 @@ import nl.knaw.dans.easy.authinfo.components.RightsFor._
 import scala.util.{ Failure, Success }
 import scala.xml.Elem
 
-class FileItemSpec extends TestSupportFixture {
+class FileRightsSpec extends TestSupportFixture {
 
   private val openAccessProfile: Elem =
       <ddm:profile>
@@ -31,83 +31,70 @@ class FileItemSpec extends TestSupportFixture {
         <ddm:available>1992-07-30</ddm:available>
       </ddm:profile>
 
-  "rightsOf" should "return none" in {
-    new FileItems(<ddm:profile/>, <files/>)
-      .rightsOf(Paths.get("some.file")) shouldBe Success(None)
-  }
-
   it should "use the dataset rights" in {
-    new FileItems(openAccessProfile, <files><file filepath="some.file"></file></files>)
-      .rightsOf(Paths.get("some.file")) shouldBe
-      Success(Some(FileRights(accessibleTo = "ANONYMOUS", visibleTo = "ANONYMOUS")))
+    FileRights.get(openAccessProfile, <file filepath="some.file"></file>) shouldBe
+      Success(FileRights(accessibleTo = "ANONYMOUS", visibleTo = "ANONYMOUS"))
   }
 
   it should "report an invalid DDM" in {
-    inside(new FileItems(<ddm:profile/>, <files><file filepath="some.file"></file></files>)
-      .rightsOf(Paths.get("some.file"))
-    ) {
+    inside(FileRights.get(<ddm:profile/>, <file filepath="some.file"></file>)) {
       case Failure(t) => t.getMessage shouldBe
         "<accessibleToRights> not found in files.xml nor <ddm:accessRights> in dataset.xml"
     }
   }
 
   it should "use a mix of file rights and dataset rights" in {
-    new FileItems(
+    FileRights.get(
       openAccessProfile,
-      <files><file filepath="some.file">
+      <file filepath="some.file">
         <accessibleToRights>{RESTRICTED_GROUP}</accessibleToRights>
-      </file></files>
-    ).rightsOf(Paths.get("some.file")) shouldBe
-      Success(Some(FileRights(accessibleTo = "RESTRICTED_GROUP", visibleTo = "ANONYMOUS")))
+      </file>
+    ) shouldBe
+      Success(FileRights(accessibleTo = "RESTRICTED_GROUP", visibleTo = "ANONYMOUS"))
   }
 
   it should "use file rights" in {
-    new FileItems(
+    FileRights.get(
       <ddm:profile/>,
-      <files><file filepath="some.file">
+      <file filepath="some.file">
         <accessibleToRights>{NONE}</accessibleToRights>
         <visibleToRights>{RESTRICTED_REQUEST}</visibleToRights>
-      </file></files>
-    ).rightsOf(Paths.get("some.file")) shouldBe
-      Success(Some(FileRights(accessibleTo = NONE.toString, visibleTo = RESTRICTED_REQUEST.toString)))
+      </file>
+    ) shouldBe
+      Success(FileRights(accessibleTo = NONE.toString, visibleTo = RESTRICTED_REQUEST.toString))
   }
 
   it should "ignore <dcterms:accessRights> if there is an <accessibleToRights>" in {
-    new FileItems(
+    FileRights.get(
       <ddm:profile/>,
-      <files><file filepath="some.file">
+      <file filepath="some.file">
         <dcterms:accessRights>{KNOWN}</dcterms:accessRights>
         <accessibleToRights>{NONE}</accessibleToRights>
         <visibleToRights>{RESTRICTED_REQUEST}</visibleToRights>
-      </file></files>
-    ).rightsOf(Paths.get("some.file")) shouldBe
-      Success(Some(FileRights(accessibleTo = NONE.toString, visibleTo = RESTRICTED_REQUEST.toString)))
+      </file>
+    ) shouldBe
+      Success(FileRights(accessibleTo = NONE.toString, visibleTo = RESTRICTED_REQUEST.toString))
   }
 
   it should "use <dcterms:accessRights> if there is no <accessibleToRights>" in {
-    new FileItems(
+    FileRights.get(
       <ddm:profile/>,
-      <files xmlns:dcterms="http://purl.org/dc/terms/">
-        <file filepath="some.file">
-          <dcterms:accessRights>{KNOWN}</dcterms:accessRights>
-          <visibleToRights>{RESTRICTED_REQUEST}</visibleToRights>
-        </file>
-      </files>
-    ).rightsOf(Paths.get("some.file")) shouldBe
-      Success(Some(FileRights(accessibleTo = "KNOWN", visibleTo = "RESTRICTED_REQUEST")))
+      <file filepath="some.file">
+        <dcterms:accessRights>{KNOWN}</dcterms:accessRights>
+        <visibleToRights>{RESTRICTED_REQUEST}</visibleToRights>
+      </file>
+    ) shouldBe
+      Success(FileRights(accessibleTo = "KNOWN", visibleTo = "RESTRICTED_REQUEST"))
   }
 
   it should "report invalid <dcterms:accessRights>" in {
-    inside(new FileItems(
+    inside(FileRights.get(
       <ddm:profile/>,
-      <files xmlns:dcterms="http://purl.org/dc/terms/">
-        <file filepath="some.file">
-          <dcterms:accessRights>rubbish</dcterms:accessRights>
-          <visibleToRights>{KNOWN}</visibleToRights>
-        </file>
-      </files>
-    ).rightsOf(Paths.get("some.file"))
-    ) {
+      <file filepath="some.file">
+        <dcterms:accessRights>rubbish</dcterms:accessRights>
+        <visibleToRights>{KNOWN}</visibleToRights>
+      </file>
+    )) {
       case Failure(t) => t.getMessage shouldBe
         "<dcterms:accessRights> [RUBBISH] in files.xml should be one of: ANONYMOUS, KNOWN, NONE, RESTRICTED_GROUP, RESTRICTED_REQUEST"
     }

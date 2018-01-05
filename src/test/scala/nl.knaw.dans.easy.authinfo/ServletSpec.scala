@@ -67,7 +67,6 @@ class ServletSpec extends TestSupportFixture with ServletFixture
       </files>
     )
     get(s"$uuid/some.file") {
-      status shouldBe OK_200
       body shouldBe
         s"""{
            |  "itemId":"$uuid/some.file",
@@ -76,14 +75,13 @@ class ServletSpec extends TestSupportFixture with ServletFixture
            |  "accessibleTo":"KNOWN",
            |  "visibleTo":"KNOWN"
            |}""".stripMargin
-      // variations are tested with FileItemSpec
+      status shouldBe OK_200
+      // variations are tested with FileRightsSpec
     }
   }
 
   it should "report file not found" in {
-    app.bagStore.loadDDM _ expects uuid once() returning Success(openAccessDDM)
     app.bagStore.loadFilesXML _ expects uuid once() returning Success(<files/>)
-    app.bagStore.loadBagInfo _ expects uuid once() returning Success(Map("EASY-User-Account" -> "someone"))
     get(s"$uuid/some.file") {
       body shouldBe s"$uuid/some.file does not exist"
       status shouldBe NOT_FOUND_404

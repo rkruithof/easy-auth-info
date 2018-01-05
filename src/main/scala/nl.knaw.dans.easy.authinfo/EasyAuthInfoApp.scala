@@ -18,33 +18,36 @@ package nl.knaw.dans.easy.authinfo
 import java.nio.file.Path
 import java.util.UUID
 
-import nl.knaw.dans.easy.authinfo.components.FileItems
+import nl.knaw.dans.easy.authinfo.EasyAuthInfoApp._
+import nl.knaw.dans.easy.authinfo.components.FileRights
 import nl.knaw.dans.lib.logging.DebugEnhancedLogging
 import org.json4s.JsonAST.JValue
 import org.json4s.JsonDSL._
 
 import scala.util.{ Failure, Success, Try }
-import scala.xml.Node
+import scala.xml.{ Elem, Node }
 
 trait EasyAuthInfoApp extends AutoCloseable with DebugEnhancedLogging with ApplicationWiring {
 
   def rightsOf(bagId: UUID, path: Path): Try[Option[JValue]] = {
-    for {
-      filesXml <- bagStore.loadFilesXML(bagId)
-      // TODO skip the rest if path not in files.xml, see find in FileItems.rightsOf
-      ddm <- bagStore.loadDDM(bagId)
-      ddmProfile <- getTag(ddm, "profile")
-      dateAvailable <- getTag(ddmProfile, "available").map(_.text)
-      rights <- new FileItems(ddmProfile, filesXml).rightsOf(path)
-      bagInfo <- bagStore.loadBagInfo(bagId)
-      owner <- getDepositor(bagInfo)
-    } yield rights.map(value =>
-      ("itemId" -> s"$bagId/$path") ~
-        ("owner" -> owner) ~
-        ("dateAvailable" -> dateAvailable) ~
-        ("accessibleTo" -> value.accessibleTo) ~
-        ("visibleTo" -> value.visibleTo)
-    )
+    bagStore
+      .loadFilesXML(bagId)
+      .map(_.getFileNode(path))
+      .map(_.map ( fileNode =>
+        for {
+          ddm <- bagStore.loadDDM(bagId)
+          ddmProfile <- getTag(ddm, "profile")
+          dateAvailable <- getTag(ddmProfile, "available").map(_.text)
+          rights <- FileRights.get(ddmProfile, fileNode)
+          bagInfo <- bagStore.loadBagInfo(bagId)
+          owner <- getDepositor(bagInfo)
+        } yield
+          ("itemId" -> s"$bagId/$path") ~
+            ("owner" -> owner) ~
+            ("dateAvailable" -> dateAvailable) ~
+            ("accessibleTo" -> rights.accessibleTo) ~
+            ("visibleTo" -> rights.visibleTo)
+      )).flattenTryOptionTry
   }
 
   private def getTag(node: Node, tag: String): Try[Node] = {
@@ -72,5 +75,28 @@ trait EasyAuthInfoApp extends AutoCloseable with DebugEnhancedLogging with Appli
 object EasyAuthInfoApp {
   def apply(conf: Configuration): EasyAuthInfoApp = new EasyAuthInfoApp {
     override lazy val configuration: Configuration = conf
+  }
+
+  implicit class RichTryOptionTry[T](val x: Try[Option[Try[T]]]) extends AnyVal {
+
+    def flattenTryOptionTry: Try[Option[T]] = {
+      x match {
+        case Success(None) => Success(None)
+        case Success(Some(Success(v))) => Success(Some(v))
+        case Success(Some(Failure(t))) => Failure(t)
+        case Failure(t) => Failure(t)
+      }
+    }
+  }
+
+  implicit class RichElem(val xmlDoc: Elem) extends AnyVal {
+
+    def getFileNode(path: Path): Option[Node] = {
+      (xmlDoc \ "file").find(_
+        .attribute("filepath")
+        .map(_.text)
+        .contains(path.toString)
+      )
+    }
   }
 }
