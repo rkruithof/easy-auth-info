@@ -15,7 +15,10 @@
  */
 package nl.knaw.dans.easy.authinfo
 
+import java.nio.file.Paths
+
 import nl.knaw.dans.lib.logging.DebugEnhancedLogging
+import nl.knaw.dans.lib.error.TryExtensions
 import org.apache.commons.daemon.{ Daemon, DaemonContext }
 
 class ServiceStarter extends Daemon with DebugEnhancedLogging {
@@ -24,7 +27,7 @@ class ServiceStarter extends Daemon with DebugEnhancedLogging {
 
   override def init(context: DaemonContext): Unit = {
     logger.info("Initializing service...")
-    val configuration = Configuration()
+    val configuration = Configuration(Paths.get(System.getProperty("app.home")))
     app = EasyAuthInfoApp(configuration)
     service = new EasyAuthInfoService(configuration.properties.getInt("daemon.http.port"), app)
     logger.info("Service initialized.")
