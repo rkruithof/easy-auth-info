@@ -19,9 +19,8 @@ import java.nio.file.Path
 
 import com.google.common.net.UrlEscapers
 
-import scala.util.{ Failure, Success, Try }
+import scala.collection.JavaConverters._
 import scalaj.http.HttpResponse
-import collection.JavaConverters._
 
 package object authinfo {
 
@@ -34,16 +33,5 @@ package object authinfo {
 
   def escapePath(path: Path): String = {
     path.asScala.map(_.toString).map(pathEscaper.escape).mkString("/")
-  }
-
-
-  implicit class TryExtensions2[T](val t: Try[T]) extends AnyVal {
-    // TODO candidate for dans-scala-lib
-    def unsafeGetOrThrow: T = {
-      t match {
-        case Success(value) => value
-        case Failure(throwable) => throw throwable
-      }
-    }
   }
 }
