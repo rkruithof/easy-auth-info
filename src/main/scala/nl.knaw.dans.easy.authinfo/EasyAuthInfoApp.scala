@@ -32,22 +32,23 @@ trait EasyAuthInfoApp extends AutoCloseable with DebugEnhancedLogging with Appli
   def rightsOf(bagId: UUID, path: Path): Try[Option[JValue]] = {
     bagStore
       .loadFilesXML(bagId)
-      .map(_.getFileNode(path))
-      .map(_.map ( fileNode =>
-        for {
-          ddm <- bagStore.loadDDM(bagId)
-          ddmProfile <- getTag(ddm, "profile")
-          dateAvailable <- getTag(ddmProfile, "available").map(_.text)
-          rights <- FileRights.get(ddmProfile, fileNode)
-          bagInfo <- bagStore.loadBagInfo(bagId)
-          owner <- getDepositor(bagInfo)
-        } yield
-          ("itemId" -> s"$bagId/$path") ~
-            ("owner" -> owner) ~
-            ("dateAvailable" -> dateAvailable) ~
-            ("accessibleTo" -> rights.accessibleTo) ~
-            ("visibleTo" -> rights.visibleTo)
-      )).flattenTryOptionTry
+      .map(_
+        .getFileNode(path)
+        .map(fileNode =>
+          for {
+            ddm <- bagStore.loadDDM(bagId)
+            ddmProfile <- getTag(ddm, "profile")
+            dateAvailable <- getTag(ddmProfile, "available").map(_.text)
+            rights <- FileRights.get(ddmProfile, fileNode)
+            bagInfo <- bagStore.loadBagInfo(bagId)
+            owner <- getDepositor(bagInfo)
+          } yield
+            ("itemId" -> s"$bagId/$path") ~
+              ("owner" -> owner) ~
+              ("dateAvailable" -> dateAvailable) ~
+              ("accessibleTo" -> rights.accessibleTo) ~
+              ("visibleTo" -> rights.visibleTo)
+        )).flattenTryOptionTry
   }
 
   private def getTag(node: Node, tag: String): Try[Node] = {

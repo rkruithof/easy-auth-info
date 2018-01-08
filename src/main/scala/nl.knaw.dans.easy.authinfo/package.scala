@@ -47,4 +47,3 @@ package object authinfo {
     }
   }
 }
-
