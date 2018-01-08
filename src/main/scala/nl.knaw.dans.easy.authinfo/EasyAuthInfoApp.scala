@@ -32,23 +32,28 @@ trait EasyAuthInfoApp extends AutoCloseable with DebugEnhancedLogging with Appli
   def rightsOf(bagId: UUID, path: Path): Try[Option[JValue]] = {
     bagStore
       .loadFilesXML(bagId)
-      .map(_
-        .getFileNode(path)
-        .map(fileNode =>
-          for {
-            ddm <- bagStore.loadDDM(bagId)
-            ddmProfile <- getTag(ddm, "profile")
-            dateAvailable <- getTag(ddmProfile, "available").map(_.text)
-            rights <- FileRights.get(ddmProfile, fileNode)
-            bagInfo <- bagStore.loadBagInfo(bagId)
-            owner <- getDepositor(bagInfo)
-          } yield
-            ("itemId" -> s"$bagId/$path") ~
-              ("owner" -> owner) ~
-              ("dateAvailable" -> dateAvailable) ~
-              ("accessibleTo" -> rights.accessibleTo) ~
-              ("visibleTo" -> rights.visibleTo)
-        )).flattenTryOptionTry
+      .map(_.getFileNode(path))
+      .flatMap {
+        case Some(fn) => collectInfoInJson(bagId, path, fn)
+        case None => Success(None)
+      }
+  }
+
+  private def collectInfoInJson(bagId: UUID, path: Path, fn: Node) = {
+    for {
+      ddm <- bagStore.loadDDM(bagId)
+      ddmProfile <- getTag(ddm, "profile")
+      dateAvailable <- getTag(ddmProfile, "available").map(_.text)
+      rights <- FileRights.get(ddmProfile, fn)
+      bagInfo <- bagStore.loadBagInfo(bagId)
+      owner <- getDepositor(bagInfo)
+    } yield Some {
+      ("itemId" -> s"$bagId/$path") ~
+        ("owner" -> owner) ~
+        ("dateAvailable" -> dateAvailable) ~
+        ("accessibleTo" -> rights.accessibleTo) ~
+        ("visibleTo" -> rights.visibleTo)
+    }
   }
 
   private def getTag(node: Node, tag: String): Try[Node] = {
@@ -76,18 +81,6 @@ trait EasyAuthInfoApp extends AutoCloseable with DebugEnhancedLogging with Appli
 object EasyAuthInfoApp {
   def apply(conf: Configuration): EasyAuthInfoApp = new EasyAuthInfoApp {
     override lazy val configuration: Configuration = conf
-  }
-
-  implicit class RichTryOptionTry[T](val x: Try[Option[Try[T]]]) extends AnyVal {
-
-    def flattenTryOptionTry: Try[Option[T]] = {
-      x match {
-        case Success(None) => Success(None)
-        case Success(Some(Success(v))) => Success(Some(v))
-        case Success(Some(Failure(t))) => Failure(t)
-        case Failure(t) => Failure(t)
-      }
-    }
   }
 
   implicit class RichElem(val xmlDoc: Elem) extends AnyVal {
