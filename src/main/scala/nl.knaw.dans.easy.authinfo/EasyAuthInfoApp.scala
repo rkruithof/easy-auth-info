@@ -32,7 +32,7 @@ trait EasyAuthInfoApp extends AutoCloseable with DebugEnhancedLogging with Appli
   def rightsOf(bagId: UUID, path: Path): Try[Option[JValue]] = {
     bagStore
       .loadFilesXML(bagId)
-      .map(_.getFileNode(path))
+      .map(getFileNode(_,path))
       .flatMap {
         case Some(fn) => collectInfoInJson(bagId, path, fn)
         case None => Success(None)
@@ -66,6 +66,14 @@ trait EasyAuthInfoApp extends AutoCloseable with DebugEnhancedLogging with Appli
       .recoverWith { case t => Failure(new Exception(s"'EASY-User-Account' (case sensitive) not found in bag-info.txt [${ t.getMessage }]")) }
   }
 
+  def getFileNode(xmlDoc: Elem, path: Path): Option[Node] = {
+    (xmlDoc \ "file").find(_
+      .attribute("filepath")
+      .map(_.text)
+      .contains(path.toString)
+    )
+  }
+
   // TODO remove init and close (+ AutoCloseable interface)
   def init(): Try[Unit] = {
     // Do any initialization of the application here. Typical examples are opening
@@ -81,16 +89,5 @@ trait EasyAuthInfoApp extends AutoCloseable with DebugEnhancedLogging with Appli
 object EasyAuthInfoApp {
   def apply(conf: Configuration): EasyAuthInfoApp = new EasyAuthInfoApp {
     override lazy val configuration: Configuration = conf
-  }
-
-  implicit class RichElem(val xmlDoc: Elem) extends AnyVal {
-
-    def getFileNode(path: Path): Option[Node] = {
-      (xmlDoc \ "file").find(_
-        .attribute("filepath")
-        .map(_.text)
-        .contains(path.toString)
-      )
-    }
   }
 }
