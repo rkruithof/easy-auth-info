@@ -35,4 +35,3 @@ package object authinfo {
     path.asScala.map(_.toString).map(pathEscaper.escape).mkString("/")
   }
 }
-

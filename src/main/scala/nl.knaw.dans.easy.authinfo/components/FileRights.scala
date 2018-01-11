@@ -15,49 +15,30 @@
  */
 package nl.knaw.dans.easy.authinfo.components
 
-import java.nio.file.Path
-
 import nl.knaw.dans.easy.authinfo.components.RightsFor._
-import nl.knaw.dans.lib.logging.DebugEnhancedLogging
 
 import scala.util.{ Failure, Success, Try }
-import scala.xml.{ Elem, Node }
+import scala.xml.Node
 
 case class FileRights(accessibleTo: String, visibleTo: String)
-class FileItems(ddmProfile: Node, filesXml: Elem) extends DebugEnhancedLogging {
-
-  private val fileItems = filesXml \ "file"
-
-  // see ddm.xsd EasyAccessCategoryType
-  private lazy val datasetAccessibleTo = (ddmProfile \ "accessRights").text match {
-    // @formatter:off
-    case "OPEN_ACCESS"                      => Some(ANONYMOUS.toString)
-    case "OPEN_ACCESS_FOR_REGISTERED_USERS" => Some(KNOWN.toString)
-    case "GROUP_ACCESS"                     => Some(RESTRICTED_GROUP.toString)
-    case "REQUEST_PERMISSION"               => Some(RESTRICTED_REQUEST.toString)
-    case "NO_ACCESS"                        => Some(NONE.toString)
-    case _                                  => None
-    // @formatter:off
-  }
+object FileRights {
   private val allowedValues = RightsFor.values.map(_.toString)
 
-  def rightsOf(path: Path): Try[Option[FileRights]] = {
-    fileItems
-      .find(_
-        .attribute("filepath")
-        .map(_.text)
-        .contains(path.toString)
-      ).map(rightsAsJson) match {
-      case Some(Success(v)) => Success(Some(v))
-      case Some(Failure(t)) => Failure(t)
-      case None => Success(None)
-    }
-  }
-
-  private def rightsAsJson(item: Node): Try[FileRights] = {
+  def get(ddmProfile: Node, fileNode: Node): Try[FileRights] = {
+    // see ddm.xsd EasyAccessCategoryType
+    val datasetAccessibleTo = (ddmProfile \ "accessRights").text match {
+      // @formatter:off
+        case "OPEN_ACCESS"                      => Some(ANONYMOUS.toString)
+        case "OPEN_ACCESS_FOR_REGISTERED_USERS" => Some(KNOWN.toString)
+        case "GROUP_ACCESS"                     => Some(RESTRICTED_GROUP.toString)
+        case "REQUEST_PERMISSION"               => Some(RESTRICTED_REQUEST.toString)
+        case "NO_ACCESS"                        => Some(NONE.toString)
+        case _                                  => None
+        // @formatter:off
+      }
 
     def getValue(tag: String): Option[String] = {
-      (item \ tag).headOption.map(_.text)
+      (fileNode \ tag).headOption.map(_.text)
     }
     val accessibleTo = getValue("accessibleToRights")
       .orElse(getValue("accessRights")
@@ -67,8 +48,8 @@ class FileItems(ddmProfile: Node, filesXml: Elem) extends DebugEnhancedLogging {
     if(accessibleTo.isEmpty)
       Failure(new Exception("<accessibleToRights> not found in files.xml nor <ddm:accessRights> in dataset.xml"))
     else if (!allowedValues.contains(accessibleTo.getOrElse("?")))
-             // <dcterms:accessRights> (synonym for <accessibleToRights>) content not validated by XSD
-      Failure(new Exception(s"<dcterms:accessRights> [${accessibleTo.getOrElse("?")}] in files.xml should be one of: ${allowedValues.mkString(", ")}"))
+         // <dcterms:accessRights> (synonym for <accessibleToRights>) content not validated by XSD
+           Failure(new Exception(s"<dcterms:accessRights> [${accessibleTo.getOrElse("?")}] in files.xml should be one of: ${allowedValues.mkString(", ")}"))
     else {
       val visibleTo = getValue("visibleToRights").getOrElse(ANONYMOUS.toString)
       Success(FileRights(accessibleTo.getOrElse("?"), visibleTo))
