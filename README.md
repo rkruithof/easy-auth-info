@@ -35,18 +35,29 @@ When started with the sub-command `run-service` a REST API becomes available wit
 In a path pattern `*` refers to any completion of the path, placeholders for variables start with a colon,
 and optional parts are enclosed in square brackets.
 
-Path       | Action
------------|------------------------------------
-`/`        | Return a simple message to indicate that the service is up: "EASY Auth Info Service running..."
-`/:uuid/*` | Return the rights for the file from the bag with bag-id `:uuid` and bag local path `*`
+Method   | Path       | Action
+---------|------------|------------------------------------
+`GET`    | `/`        | Return a simple message to indicate that the service is up: "EASY Auth Info Service running..."
+`GET`    | `/:uuid/*` | Return the rights for the file from the bag with bag-id `:uuid` and bag local path `*`
 
 
 EXAMPLES
 --------
 
-    easy-auth-info 40594b6d-8378-4260-b96b-13b57beadf7c/data/pakbon.xml
-    curl http://localhost:20170/40594b6d-8378-4260-b96b-13b57beadf7c/data/pakbon.xml
+```jshelllanguage
+easy-auth-info 40594b6d-8378-4260-b96b-13b57beadf7c/data/pakbon.xml
+curl 'http://localhost:20170/40594b6d-8378-4260-b96b-13b57beadf7c/data/pakbon.xml'
+```
 
+```json
+{
+  "itemId":"40594b6d-8378-4260-b96b-13b57beadf7c/data/pakbon.xml",
+  "owner":"someone",
+  "dateAvailable":"1992-07-30",
+  "accessibleTo":"KNOWN",
+  "visibleTo":"KNOWN"
+}
+```
 
 INSTALLATION AND CONFIGURATION
 ------------------------------
@@ -70,6 +81,19 @@ INSTALLATION AND CONFIGURATION
 
 General configuration settings can be set in `cfg/application.properties` and logging can be configured
 in `cfg/logback.xml`. The available settings are explained in comments in aforementioned files.
+
+### Security advice
+
+Keep everything behind the firewall. Services like download and search will need access to the main
+servlet implementing the `GET` methods. Only emergency fixes will need access to the update servlet
+implementing the `DELETE` methods. Unintentional deletes won't hurt functionality but might have a
+performance penalty.
+
+### Performance advice
+
+Keeping the default `solr.url` and `solr.core` in the `application.properties` while not having the
+solr core up and running, will slow down the service even more than omitting the properties
+as it will try to read and update each request in the solr cache.
 
 
 BUILDING FROM SOURCE

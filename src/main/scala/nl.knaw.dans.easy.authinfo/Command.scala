@@ -38,12 +38,7 @@ object Command extends App with DebugEnhancedLogging {
   val app = EasyAuthInfoApp(configuration)
 
   managed(app)
-    .acquireAndGet(app => {
-      for {
-        _ <- app.init()
-        msg <- runSubcommand(app)
-      } yield msg
-    })
+    .acquireAndGet(runSubcommand)
     .doIfSuccess(msg => println(s"OK: $msg"))
     .doIfFailure { case e => logger.error(e.getMessage, e) }
     .doIfFailure { case NonFatal(e) => println(s"FAILED: ${ e.getMessage }") }
@@ -64,13 +59,14 @@ object Command extends App with DebugEnhancedLogging {
       subPath = fullPath.relativize(root)
       rightsOf <- app.rightsOf(uuid, subPath)
     } yield rightsOf match {
-      case Some(rights) => Success(pretty(render(rights)))
+      case Some(CachedAuthInfo(rights, _)) => Success(pretty(render(rights)))
       case None => Failure(new FileNotFoundException(fullPath.toString))
     }).flatten
   }
 
   private def runAsService(app: EasyAuthInfoApp): Try[FeedBackMessage] = Try {
     val service = new EasyAuthInfoService(configuration.properties.getInt("daemon.http.port"), app)
+    // TODO how to report cache problems?
     Runtime.getRuntime.addShutdownHook(new Thread("service-shutdown") {
       override def run(): Unit = {
         service.stop()

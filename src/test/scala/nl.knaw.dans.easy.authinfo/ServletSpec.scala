@@ -15,10 +15,12 @@
  */
 package nl.knaw.dans.easy.authinfo
 
-import java.util.UUID
-
 import nl.knaw.dans.easy.authinfo.components.RightsFor._
+import nl.knaw.dans.easy.authinfo.components.SolrMocker._
+import nl.knaw.dans.easy.authinfo.components.{ AuthCacheNotConfigured, AuthCacheWithSolr }
 import org.apache.commons.configuration.PropertiesConfiguration
+import org.apache.solr.client.solrj.SolrClient
+import org.apache.solr.common.SolrDocument
 import org.eclipse.jetty.http.HttpStatus._
 import org.scalamock.scalatest.MockFactory
 import org.scalatra.test.scalatest.ScalatraSuite
@@ -35,10 +37,17 @@ class ServletSpec extends TestSupportFixture with ServletFixture
     // mocking at a low level to test the chain of error handling
     override val bagStore: BagStore = mock[BagStore]
     override lazy val configuration: Configuration = new Configuration("", new PropertiesConfiguration() {
-      addProperty("bag-store.url", "http://localhost:20110/")
+      addProperty("bag-store.url", "http://hostThatDoesNotExist:20110/")
+      addProperty("solr.url", "http://hostThatDoesNotExist")
+      addProperty("solr.collection", "authinfo")
     })
+    override val authCache: AuthCacheNotConfigured = new AuthCacheWithSolr() {
+      override val commitWithinMs = 1
+      override val solrClient: SolrClient = mockedSolrClient
+    }
   }
-  private val uuid = UUID.randomUUID()
+  addServlet(new EasyAuthInfoServlet(app), "/*")
+
   private val openAccessDDM: Elem =
     <ddm:DDM>
       <ddm:profile>
@@ -46,7 +55,18 @@ class ServletSpec extends TestSupportFixture with ServletFixture
         <ddm:available>1992-07-30</ddm:available>
       </ddm:profile>
     </ddm:DDM>
-  addServlet(new EasyAuthInfoServlet(app), "/*")
+
+  private val FilesWithAllRightsForKnown: Elem =
+    <files>
+      <file filepath="some.file">
+        <accessibleToRights>{KNOWN}</accessibleToRights>
+        <visibleToRights>{KNOWN}</visibleToRights>
+      </file>
+      <file filepath="path/to/some.file">
+        <accessibleToRights>{KNOWN}</accessibleToRights>
+        <visibleToRights>{KNOWN}</visibleToRights>
+      </file>
+    </files>
 
   "get /" should "return the message that the service is running" in {
     get("/") {
@@ -55,76 +75,128 @@ class ServletSpec extends TestSupportFixture with ServletFixture
     }
   }
 
-  "get /:uuid/*" should "return json" in {
-    app.bagStore.loadBagInfo _ expects uuid once() returning Success(Map("EASY-User-Account" -> "someone"))
-    app.bagStore.loadDDM _ expects uuid once() returning Success(openAccessDDM)
-    app.bagStore.loadFilesXML _ expects uuid once() returning Success(
-      <files>
-        <file filepath="some.file">
-          <accessibleToRights>{KNOWN}</accessibleToRights>
-          <visibleToRights>{KNOWN}</visibleToRights>
-        </file>
-      </files>
-    )
-    get(s"$uuid/some.file") {
-      body shouldBe
-        s"""{
-           |  "itemId":"$uuid/some.file",
-           |  "owner":"someone",
-           |  "dateAvailable":"1992-07-30",
-           |  "accessibleTo":"KNOWN",
-           |  "visibleTo":"KNOWN"
-           |}""".stripMargin
+  "get /:uuid/*" should "return values from the solr cache" in {
+    expectsSolrDocInCahce(new SolrDocument() {
+      addField("id", s"$randomUUID/some.file")
+      addField("easy_owner", "someone")
+      addField("easy_date_available", "1992-07-30")
+      addField("easy_accessible_to", "KNOWN")
+      addField("easy_visible_to", "ANONYMOUS")
+    })
+    get(s"$randomUUID/some.file") {
+      // in this case the fields are returned in a random order
+      body should include(s""""itemId":"$randomUUID/some.file"""")
+      body should include(s""""owner":"someone"""")
+      body should include(s""""dateAvailable":"1992-07-30"""")
+      body should include(s""""accessibleTo":"KNOWN"""")
+      body should include(s""""visibleTo":"ANONYMOUS"""")
       status shouldBe OK_200
-      // variations are tested with FileRightsSpec
     }
   }
 
-  it should "report file not found" in {
-    app.bagStore.loadFilesXML _ expects uuid once() returning Success(<files/>)
-    get(s"$uuid/some.file") {
-      body shouldBe s"$uuid/some.file does not exist"
-      status shouldBe NOT_FOUND_404
-    }
+  it should "report cache was updated" in {
+    expectsSolrDocIsNotInCache
+    expectsSolrDocUpdateSuccess
+    app.bagStore.loadBagInfo _ expects randomUUID once() returning Success(Map("EASY-User-Account" -> "someone"))
+    app.bagStore.loadDDM _ expects randomUUID once() returning Success(openAccessDDM)
+    app.bagStore.loadFilesXML _ expects randomUUID once() returning Success(FilesWithAllRightsForKnown)
+    shouldReturn(OK_200,
+      s"""{
+         |  "itemId":"$randomUUID/path/to/some.file",
+         |  "owner":"someone",
+         |  "dateAvailable":"1992-07-30",
+         |  "accessibleTo":"KNOWN",
+         |  "visibleTo":"KNOWN"
+         |}""".stripMargin,
+      whenRequesting = s"$randomUUID/path/to/some.file"
+    ) // variations are tested with FileRightsSpec
+  }
+
+  it should "report cache update failed" in {
+    expectsSolrDocIsNotInCache
+    expextsSolrDocUpdateFailure
+    app.bagStore.loadBagInfo _ expects randomUUID once() returning Success(Map("EASY-User-Account" -> "someone"))
+    app.bagStore.loadDDM _ expects randomUUID once() returning Success(openAccessDDM)
+    app.bagStore.loadFilesXML _ expects randomUUID once() returning Success(FilesWithAllRightsForKnown)
+    shouldReturn(OK_200,
+      s"""{
+         |  "itemId":"$randomUUID/some.file",
+         |  "owner":"someone",
+         |  "dateAvailable":"1992-07-30",
+         |  "accessibleTo":"KNOWN",
+         |  "visibleTo":"KNOWN"
+         |}""".stripMargin
+    )
   }
 
   it should "report invalid uuid" in {
-    get("1-2-3-4-5-6/some.file") {
-      body shouldBe "Invalid UUID string: 1-2-3-4-5-6"
-      status shouldBe BAD_REQUEST_400
-    }
+    shouldReturn(BAD_REQUEST_400, "Invalid UUID string: 1-2-3-4-5-6", whenRequesting = "1-2-3-4-5-6/some.file")
   }
 
   it should "report missing path" in {
-    get(s"$uuid/") {
-      body shouldBe "file path is empty"
-      status shouldBe BAD_REQUEST_400
-    }
+    shouldReturn(BAD_REQUEST_400, "file path is empty", whenRequesting = s"$randomUUID/")
   }
 
   it should "report bag not found" in {
-    app.bagStore.loadFilesXML _ expects uuid once() returning httpException(s"Bag $uuid does not exist in BagStore")
-    get(s"$uuid/some.file") {
-      body shouldBe s"$uuid does not exist"
-      status shouldBe NOT_FOUND_404
-    }
+    expectsSolrDocIsNotInCache
+    app.bagStore.loadFilesXML _ expects randomUUID once() returning httpException(s"Bag $randomUUID does not exist in BagStore")
+    shouldReturn(NOT_FOUND_404, s"$randomUUID does not exist")
   }
 
-  it should "report depositor not found" in {
-    app.bagStore.loadBagInfo _ expects uuid once() returning Success(Map.empty)
-    app.bagStore.loadDDM _ expects uuid once() returning Success(openAccessDDM)
-    app.bagStore.loadFilesXML _ expects uuid once() returning Success(<files><file filepath="some.file"/></files>)
-    get(s"$uuid/some.file") { // TODO intercept logging to show difference with the next test?
-      body shouldBe s"not expected exception"
-      status shouldBe INTERNAL_SERVER_ERROR_500
-    }
+  it should "report file not found" in {
+    expectsSolrDocIsNotInCache
+    app.bagStore.loadFilesXML _ expects randomUUID once() returning Success(<files/>)
+    shouldReturn(NOT_FOUND_404, s"$randomUUID/some.file does not exist")
   }
 
-  it should "report invalid bag" in {
-    app.bagStore.loadFilesXML _ expects uuid once() returning httpException(s"File $uuid/metadata/files.xml does not exist in BagStore")
-    get(s"$uuid/some.file") {
-      body shouldBe "not expected exception"
-      status shouldBe INTERNAL_SERVER_ERROR_500
+  it should "report invalid bag: no files.xml" in {
+    expectsSolrDocIsNotInCache
+    app.bagStore.loadFilesXML _ expects randomUUID once() returning httpException(s"File $randomUUID/metadata/files.xml does not exist in BagStore")
+    shouldReturn(INTERNAL_SERVER_ERROR_500, s"not expected exception")
+  }
+
+  it should "report invalid bag: no DDM" in {
+    expectsSolrDocIsNotInCache
+    app.bagStore.loadFilesXML _ expects randomUUID once() returning Success(<files><file filepath="some.file"/></files>)
+    app.bagStore.loadDDM _ expects randomUUID once() returning httpException(s"File $randomUUID/metadata/dataset.xml does not exist in BagStore")
+    shouldReturn(INTERNAL_SERVER_ERROR_500, s"not expected exception")
+  }
+
+  it should "report invalid bag: no profile in DDM" in {
+    expectsSolrDocIsNotInCache
+    app.bagStore.loadFilesXML _ expects randomUUID once() returning Success(<files><file filepath="some.file"/></files>)
+    app.bagStore.loadDDM _ expects randomUUID once() returning Success(<ddm:DDM/>)
+    shouldReturn(INTERNAL_SERVER_ERROR_500, s"not expected exception")
+  }
+
+  it should "report invalid bag: no date available in DDM" in {
+    expectsSolrDocIsNotInCache
+    app.bagStore.loadFilesXML _ expects randomUUID once() returning Success(<files><file filepath="some.file"/></files>)
+    app.bagStore.loadDDM _ expects randomUUID once() returning Success(<ddm:DDM><ddm:profile/></ddm:DDM>)
+    shouldReturn(INTERNAL_SERVER_ERROR_500, s"not expected exception")
+  }
+
+  it should "report invalid bag: no bag-info.txt" in {
+    expectsSolrDocIsNotInCache
+    app.bagStore.loadFilesXML _ expects randomUUID once() returning Success(<files><file filepath="some.file"/></files>)
+    app.bagStore.loadDDM _ expects randomUUID once() returning Success(openAccessDDM)
+    app.bagStore.loadBagInfo _ expects randomUUID once() returning httpException(s"File $randomUUID/info.txt does not exist in BagStore")
+    shouldReturn(INTERNAL_SERVER_ERROR_500, s"not expected exception")
+  }
+
+  it should "report invalid bag: depositor not found" in {
+    expectsSolrDocIsNotInCache
+    app.bagStore.loadBagInfo _ expects randomUUID once() returning Success(Map.empty)
+    app.bagStore.loadDDM _ expects randomUUID once() returning Success(openAccessDDM)
+    app.bagStore.loadFilesXML _ expects randomUUID once() returning Success(<files><file filepath="some.file"/></files>)
+    shouldReturn(INTERNAL_SERVER_ERROR_500, s"not expected exception")
+  }
+
+  private def shouldReturn(expectedStatus: Int, expectedBody: String, whenRequesting: String = s"$randomUUID/some.file"): Any = {
+    // verify logging manually: set log-level on warn in test/resources/logback.xml //TODO? file appender for testDir/XxxSpec/app.log
+    get(whenRequesting) {
+      body shouldBe expectedBody
+      status shouldBe expectedStatus
     }
   }
 

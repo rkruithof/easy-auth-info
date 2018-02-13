@@ -18,20 +18,54 @@ package nl.knaw.dans.easy
 import java.nio.file.Path
 
 import com.google.common.net.UrlEscapers
+import nl.knaw.dans.easy.authinfo.components.AuthCacheNotConfigured.CacheLiterals
+import org.apache.solr.client.solrj.response.UpdateResponse
+import org.apache.solr.common.util.NamedList
+import org.json4s.JsonAST.JValue
 
 import scala.collection.JavaConverters._
+import scala.util.Try
 import scalaj.http.HttpResponse
 
 package object authinfo {
 
   type BagInfo = Map[String, String]
 
-  case class HttpStatusException(msg: String, response: HttpResponse[String])
-    extends Exception(s"$msg - ${ response.statusLine }, details: ${ response.body }")
+  /**
+   * @param authInfo    authorisation information
+   * @param cacheUpdate None: not updated because it was found
+   */
+  case class CachedAuthInfo(authInfo: JValue, cacheUpdate: Option[Try[UpdateResponse]] = None)
+
+  implicit class RichString(val s: String) extends AnyVal {
+
+    // TODO candidate for dans-scala-lib
+    def toOneLiner: String = s.split("\n").map(_.trim).mkString(" ")
+  }
 
   private val pathEscaper = UrlEscapers.urlPathSegmentEscaper()
 
   def escapePath(path: Path): String = {
     path.asScala.map(_.toString).map(pathEscaper.escape).mkString("/")
   }
+
+  case class HttpStatusException(msg: String, response: HttpResponse[String])
+    extends Exception(s"$msg - ${ response.statusLine }, details: ${ response.body }")
+
+  case class CacheStatusException(namedList: NamedList[AnyRef])
+    extends Exception(s"solr returned: ${ namedList.asShallowMap().values().toArray().mkString }")
+
+  case class CacheBadRequestException(msg: String, cause: Throwable)
+    extends Exception(msg, cause)
+
+  case class CacheSearchException(query: String, cause: Throwable)
+    extends Exception(s"solr query [$query] failed with ${ cause.getMessage }", cause)
+
+  case class CacheUpdateException(literals: CacheLiterals, cause: Throwable)
+    extends Exception(s"solr update of [${ literals.toMap.mkString(", ") }] failed with ${ cause.getMessage }", cause)
+
+  case class CacheCommitException(cause: Throwable)
+    extends Exception(cause.getMessage, cause)
+
+  case class InvalidBagException(message: String) extends Exception(message)
 }

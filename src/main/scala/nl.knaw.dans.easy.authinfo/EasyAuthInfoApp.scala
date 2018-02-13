@@ -18,52 +18,57 @@ package nl.knaw.dans.easy.authinfo
 import java.nio.file.Path
 import java.util.UUID
 
-import nl.knaw.dans.easy.authinfo.EasyAuthInfoApp._
-import nl.knaw.dans.easy.authinfo.components.FileRights
+import nl.knaw.dans.easy.authinfo.components.{ FileItem, FileRights }
 import nl.knaw.dans.lib.logging.DebugEnhancedLogging
-import org.json4s.JsonAST.JValue
-import org.json4s.JsonDSL._
 
 import scala.util.{ Failure, Success, Try }
 import scala.xml.{ Elem, Node }
 
 trait EasyAuthInfoApp extends AutoCloseable with DebugEnhancedLogging with ApplicationWiring {
 
-  def rightsOf(bagId: UUID, path: Path): Try[Option[JValue]] = {
-    bagStore
-      .loadFilesXML(bagId)
-      .map(getFileNode(_,path))
-      .flatMap {
-        case Some(fn) => collectInfoInJson(bagId, path, fn)
-        case None => Success(None)
-      }
-  }
-
-  private def collectInfoInJson(bagId: UUID, path: Path, fn: Node) = {
-    for {
-      ddm <- bagStore.loadDDM(bagId)
-      ddmProfile <- getTag(ddm, "profile")
-      dateAvailable <- getTag(ddmProfile, "available").map(_.text)
-      rights <- FileRights.get(ddmProfile, fn)
-      bagInfo <- bagStore.loadBagInfo(bagId)
-      owner <- getDepositor(bagInfo)
-    } yield Some {
-      ("itemId" -> s"$bagId/$path") ~
-        ("owner" -> owner) ~
-        ("dateAvailable" -> dateAvailable) ~
-        ("accessibleTo" -> rights.accessibleTo) ~
-        ("visibleTo" -> rights.visibleTo)
+  def rightsOf(bagId: UUID, path: Path): Try[Option[CachedAuthInfo]] = {
+    authCache.search(s"$bagId/$path") match {
+      case Success(Some(doc)) => Success(Some(CachedAuthInfo(FileItem.toJson(doc))))
+      case Success(None) => fromBagStore(bagId, path)
+      case Failure(t) =>
+        logger.warn(s"cache lookup failed for [$bagId/$path] ${ Option(t.getMessage).getOrElse("") }")
+        fromBagStore(bagId, path)
     }
   }
 
-  private def getTag(node: Node, tag: String): Try[Node] = {
-    Try { (node \ tag).head }
-      .recoverWith { case t => Failure(new Exception(s"<ddm:$tag> not found in dataset.xml [${ t.getMessage }]")) }
+  private def fromBagStore(bagId: UUID, path: Path): Try[Option[CachedAuthInfo]] = {
+    bagStore
+      .loadFilesXML(bagId)
+      .map(getFileNode(_, path))
+      .flatMap {
+        case None => Success(None) // TODO cache repeatedly requested but not found bags/files?
+        case Some(filesXmlItem) =>
+          collectInfo(bagId, path, filesXmlItem).map { fileItem =>
+            val cacheUpdate = authCache.submit(fileItem.solrLiterals)
+            Some(CachedAuthInfo(fileItem.json, Some(cacheUpdate)))
+          }
+      }
   }
 
-  private def getDepositor(bagInfoMap: BagInfo) = {
+  private def collectInfo(bagId: UUID, path: Path, fileNode: Node) = {
+    for {
+      ddm <- bagStore.loadDDM(bagId)
+      ddmProfile <- getTag(ddm, "profile", bagId)
+      dateAvailable <- getTag(ddmProfile, "available", bagId).map(_.text)
+      rights <- FileRights.get(ddmProfile, fileNode)
+      bagInfo <- bagStore.loadBagInfo(bagId)
+      owner <- getDepositor(bagInfo, bagId)
+    } yield FileItem(bagId, path, owner, rights, dateAvailable)
+  }
+
+  private def getTag(node: Node, tag: String, bagId: UUID): Try[Node] = {
+    Try { (node \ tag).head }
+      .recoverWith { case _ => Failure(InvalidBagException(s"<ddm:$tag> not found in $bagId/dataset.xml")) }
+  }
+
+  private def getDepositor(bagInfoMap: BagInfo, bagId: UUID) = {
     Try(bagInfoMap("EASY-User-Account"))
-      .recoverWith { case t => Failure(new Exception(s"'EASY-User-Account' (case sensitive) not found in bag-info.txt [${ t.getMessage }]")) }
+      .recoverWith { case _ => Failure(InvalidBagException(s"'EASY-User-Account' (case sensitive) not found in $bagId/bag-info.txt")) }
   }
 
   def getFileNode(xmlDoc: Elem, path: Path): Option[Node] = {
@@ -74,15 +79,8 @@ trait EasyAuthInfoApp extends AutoCloseable with DebugEnhancedLogging with Appli
     )
   }
 
-  // TODO remove init and close (+ AutoCloseable interface)
-  def init(): Try[Unit] = {
-    // Do any initialization of the application here. Typical examples are opening
-    // databases or connecting to other services.
-    Success(())
-  }
-
   override def close(): Unit = {
-
+    authCache.close()
   }
 }
 
