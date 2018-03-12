@@ -6,8 +6,9 @@ easy-auth-info
 SYNOPSIS
 --------
 
-    easy-auth-info <uuid>/<path>
-    easy-auth-info run-service
+    easy-auth-info run-service # Runs the program as a service
+    easy-auth-info <item-id> # Retrieves the information from the cache or directly from the bag-store
+
 
 DESCRIPTION
 -----------
@@ -22,6 +23,9 @@ ARGUMENTS
 
         --help      Show help message
         --version   Show version of this program
+    
+     trailing arguments:
+      path (not required)
 
     Subcommand: run-service - Starts EASY Auth Info as a daemon that services HTTP requests
         --help   Show help message
