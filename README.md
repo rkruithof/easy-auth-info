@@ -21,14 +21,14 @@ ARGUMENTS
 
     Options:
 
-        --help      Show help message
-        --version   Show version of this program
+    -h, --help      Show help message
+    -v, --version   Show version of this program
     
      trailing arguments:
       path (not required)
 
     Subcommand: run-service - Starts EASY Auth Info as a daemon that services HTTP requests
-        --help   Show help message
+        -h, --help   Show help message
     ---
 
 
