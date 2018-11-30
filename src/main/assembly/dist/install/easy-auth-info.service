@@ -7,6 +7,9 @@ ExecStart=/bin/java \
    -Dapp.home=/opt/dans.knaw.nl/easy-auth-info \
    -jar /opt/dans.knaw.nl/easy-auth-info/bin/easy-auth-info.jar run-service
 
+# Java returns 143 even if the SIGTERM was handled correctly.
+SuccessExitStatus=143
+
 User=easy-auth-info
 Group=easy-auth-info
 
