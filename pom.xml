@@ -23,7 +23,7 @@
         <version>2.2.3</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
-    <groupId>nl.knaw.dans.easy</groupId>git st
+    <groupId>nl.knaw.dans.easy</groupId>
     <artifactId>easy-auth-info</artifactId>
     <version>1.0.5-SNAPSHOT</version>
     <name>EASY Auth Info</name>
