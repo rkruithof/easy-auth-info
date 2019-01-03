@@ -19,13 +19,14 @@ import nl.knaw.dans.easy.authinfo.components.RightsFor._
 import nl.knaw.dans.easy.authinfo.components.SolrMocker._
 import org.apache.solr.common.SolrDocument
 import org.eclipse.jetty.http.HttpStatus._
+import org.scalatra.test.EmbeddedJettyContainer
 import org.scalatra.test.scalatest.ScalatraSuite
 
 import scala.util.{ Failure, Success }
 import scala.xml.Elem
 import scalaj.http.HttpResponse
 
-class ServletSpec extends TestSupportFixture with ServletFixture with ScalatraSuite {
+class ServletSpec extends TestSupportFixture with EmbeddedJettyContainer with ScalatraSuite {
 
   private val app = mockApp
   private val mockedBagStore: app.BagStore = app.bagStore
