@@ -25,7 +25,7 @@ ARGUMENTS
     -v, --version   Show version of this program
     
      trailing arguments:
-      path (not required)
+      path (required)
 
     Subcommand: run-service - Starts EASY Auth Info as a daemon that services HTTP requests
         -h, --help   Show help message
