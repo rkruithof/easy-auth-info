@@ -19,6 +19,7 @@ import java.nio.file.{ Path, Paths }
 import java.util.UUID
 
 import nl.knaw.dans.lib.logging.DebugEnhancedLogging
+import nl.knaw.dans.lib.logging.servlet._
 import org.eclipse.jetty.http.HttpStatus._
 import org.json4s.native.JsonMethods.{ pretty, render }
 import org.scalatra._
@@ -26,11 +27,11 @@ import org.scalatra._
 import scala.util.{ Failure, Success, Try }
 import scalaj.http.HttpResponse
 
-class EasyAuthInfoServlet(app: EasyAuthInfoApp) extends ScalatraServlet with DebugEnhancedLogging {
+class EasyAuthInfoServlet(app: EasyAuthInfoApp) extends ScalatraServlet with DebugEnhancedLogging with ServletLogger with PlainLogFormatter {
 
   get("/") {
     contentType = "text/plain"
-    Ok("EASY Auth Info Service running...")
+    Ok("EASY Auth Info Service running...").logResponse
   }
 
   get("/:uuid/*") {
@@ -42,7 +43,7 @@ class EasyAuthInfoServlet(app: EasyAuthInfoApp) extends ScalatraServlet with Deb
       case _ => InternalServerError("not expected exception")
     }
     logger.info(s"returned status=${ result.status } for request [${ params.mkString(", ") }] response.body: ${ result.body.toString.toOneLiner }")
-    result
+    result.logResponse
   }
 
   private def getUUID = {
