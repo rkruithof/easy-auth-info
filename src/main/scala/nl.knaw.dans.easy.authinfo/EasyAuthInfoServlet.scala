@@ -66,7 +66,6 @@ class EasyAuthInfoServlet(app: EasyAuthInfoApp) extends ScalatraServlet with Deb
         Ok(pretty(render(json)))
       case Success(None) => NotFound(s"$uuid/$path does not exist")
       case Failure(HttpStatusException(message, HttpResponse(_, SERVICE_UNAVAILABLE_503, _))) => ServiceUnavailable(message)
-      case Failure(HttpStatusException(message, HttpResponse(_, REQUEST_TIMEOUT_408, _))) => RequestTimeout(message)
       case Failure(HttpStatusException(message, HttpResponse(_, NOT_FOUND_404, _))) if message.startsWith("Bag ") => NotFound(s"$uuid does not exist")
       case Failure(HttpStatusException(message, HttpResponse(_, NOT_FOUND_404, _))) =>
         logger.error(s"invalid bag: $message")
