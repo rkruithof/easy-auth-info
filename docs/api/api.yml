@@ -1,0 +1,135 @@
+openapi: 3.0.0
+info:
+  title: Auth Info Service API
+  version: 1.0.6
+  description: |
+    This document specifies the Auth Info Service API. It provides authorization information about items in the bag stores.
+    This API implements the operations `GET` on the paths `/` and `/:uuid/*`.
+    It is not neccessary for this service to supply the bag store the bag is stored in.
+
+    (***Note**: OpenAPI cannot express parameters that capture more than one path component, so we define such path
+    parameters as: `p1`, `p2`, `p3`, `pn`*).
+
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0
+
+servers:
+  - url: 'http://localhost:20170'
+  - url: 'http://test.dans.knaw.nl:20170'
+    description: Local test VM
+
+paths:
+  /:
+    get:
+      summary: Returns a description of the service.
+      description:
+        This is the starting place for navigating the Auth Info Service. It returns a description of the service.
+      responses:
+        200:
+          description: Description of the service
+          content:
+            text/plain:
+              schema:
+                type: string
+                description: A plain text, human readable description of the service
+                example: Auth Info Service is running.
+        500:
+          $ref: '#/components/responses/Unavailable'
+
+  /{uuid}/{p1}/{p2}/{p3}/{pn}:
+    get:
+      summary: Returns the auth info for an item from a bag in any bag store.
+      description: |
+        An item is either a directory or file in a bag. The item fetched is specified by the item-id:
+
+        ```
+        uuid/p1[/p2[..[pn]..]]
+        ```
+        (**Note:** The path portion of this item-id is *not* limited to 4 components. OpenAPI cannot express parameters that capture more than one path component.)
+
+      parameters:
+        - $ref: '#/components/parameters/Uuid'
+        - $ref: '#/components/parameters/P1'
+        - $ref: '#/components/parameters/P2'
+        - $ref: '#/components/parameters/P3'
+        - $ref: '#/components/parameters/Pn'
+      responses:
+        200:
+          description: file info object
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/authInfoOk"
+        404:
+          description: The item could not be found.
+        500:
+          $ref: '#/components/responses/Unavailable'
+        503:
+          description: The service is unavailable.
+
+components:
+  parameters:
+    Uuid:
+      in: path
+      name: uuid
+      schema:
+        type: string
+      required: true
+      description: bag-id of the targeted bag
+    P1:
+      in: path
+      name: p1
+      schema:
+        type: string
+      required: true
+      description: path element 1
+    P2:
+      in: path
+      name: p2
+      schema:
+        type: string
+      required: false
+      description: path element 2
+    P3:
+      in: path
+      name: p3
+      schema:
+        type: string
+      required: false
+      description: path element 3
+    Pn:
+      in: path
+      name: pn
+      schema:
+        type: string
+      required: false
+      description: path element n
+
+  responses:
+    Unavailable:
+      description: Service is unavailable because of an error.
+
+
+  schemas:
+    authInfoOk:
+      type: object
+      example:
+        itemId: 40594b6d-8378-4260-b96b-13b57beadf7c/data/pakbon.xml
+        owner: someone
+        dataAvaliable: "1992-07-30"
+        accessibleTo: KNOWN
+        visibleTo: KNOWN
+      properties:
+        itemId:
+          type: string
+          format: "uuid"
+        owner:
+          type: string
+        dateAvailable:
+          type: string
+          format: "date"
+        accessibleTo:
+          type: string
+        visibleTo:
+          type: string

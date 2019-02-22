@@ -1,3 +1,8 @@
+---
+title: Manual
+layout: home
+---
+
 easy-auth-info
 ===========
 [![Build Status](https://travis-ci.org/DANS-KNAW/easy-auth-info.png?branch=master)](https://travis-ci.org/DANS-KNAW/easy-auth-info)
@@ -12,7 +17,6 @@ SYNOPSIS
 
 DESCRIPTION
 -----------
-
 Provides consolidated authorization info about items in a bag store.
 
 
@@ -23,7 +27,7 @@ ARGUMENTS
 
     -h, --help      Show help message
     -v, --version   Show version of this program
-    
+
      trailing arguments:
       path (required)
 
@@ -77,8 +81,8 @@ INSTALLATION AND CONFIGURATION
 1. Unzip the tarball to a directory of your choice, typically `/usr/local/`
 2. A new directory called easy-auth-info-<version> will be created
 3. Add the command script to your `PATH` environment variable by creating a symbolic link to it from a directory that is
-   on the path, e.g. 
-   
+   on the path, e.g.
+
         ln -s /usr/local/easy-auth-info-<version>/bin/easy-auth-info /usr/bin
 
 
