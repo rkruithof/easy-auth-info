@@ -37,23 +37,21 @@ paths:
         500:
           $ref: '#/components/responses/Unavailable'
 
-  /{uuid}/{p1}/{p2}/{p3}/{pn}:
+  /{ItemId}:
     get:
       summary: Returns the auth info for an item from a bag in any bag store.
       description: |
-        An item is either a directory or file in a bag. The item fetched is specified by the item-id:
+        An item is either a directory or file in a bag. The item for which Auth Info is fetched is specified by the item-id, which is the bag-id.
+        Optionally this may followed by the path location of directory of file within the bag to request the Auth Info of a specific item:
 
         ```
-        uuid/p1[/p2[..[pn]..]]
+        example ItemIds:
+         40594b6d-8378-4260-b96b-13b57beadf7c/
+         40594b6d-8378-4260-b96b-13b57beadf7c/path/to/file
         ```
-        (**Note:** The path portion of this item-id is *not* limited to 4 components. OpenAPI cannot express parameters that capture more than one path component.)
 
       parameters:
-        - $ref: '#/components/parameters/Uuid'
-        - $ref: '#/components/parameters/P1'
-        - $ref: '#/components/parameters/P2'
-        - $ref: '#/components/parameters/P3'
-        - $ref: '#/components/parameters/Pn'
+        - $ref: '#/components/parameters/ItemId'
       responses:
         200:
           description: file info object
@@ -70,41 +68,13 @@ paths:
 
 components:
   parameters:
-    Uuid:
+    ItemId:
       in: path
-      name: uuid
+      name: ItemId
       schema:
         type: string
       required: true
-      description: bag-id of the targeted bag
-    P1:
-      in: path
-      name: p1
-      schema:
-        type: string
-      required: true
-      description: path element 1
-    P2:
-      in: path
-      name: p2
-      schema:
-        type: string
-      required: false
-      description: path element 2
-    P3:
-      in: path
-      name: p3
-      schema:
-        type: string
-      required: false
-      description: path element 3
-    Pn:
-      in: path
-      name: pn
-      schema:
-        type: string
-      required: false
-      description: path element n
+      description: The bag-id of the targeted bag followed by the path location of targeted items.
 
   responses:
     Unavailable:
