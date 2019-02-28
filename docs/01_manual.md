@@ -23,16 +23,14 @@ Provides consolidated authorization info about items in a bag store.
 ARGUMENTS
 ---------
 
-    Options:
-
-    -h, --help      Show help message
-    -v, --version   Show version of this program
-
+     -h, --help      Show help message
+     -v, --version   Show version of this program
+    
      trailing arguments:
-      path (required)
-
+      path (not required)
+    
     Subcommand: run-service - Starts EASY Auth Info as a daemon that services HTTP requests
-        -h, --help   Show help message
+      -h, --help   Show help message
     ---
 
 
