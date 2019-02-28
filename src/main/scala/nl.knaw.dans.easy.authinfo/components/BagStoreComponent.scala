@@ -20,12 +20,11 @@ import java.nio.file.Paths
 import java.util.UUID
 
 import nl.knaw.dans.easy.authinfo.{ BagInfo, HttpStatusException, escapePath }
-import nl.knaw.dans.lib.logging.DebugEnhancedLogging
 
 import scala.util.{ Failure, Success, Try }
 import scala.xml.{ Elem, XML }
 
-trait BagStoreComponent extends DebugEnhancedLogging {
+trait BagStoreComponent {
   this: HttpContext =>
 
   val bagStore: BagStore
@@ -46,7 +45,6 @@ trait BagStoreComponent extends DebugEnhancedLogging {
     }
 
     private def loadXml(url: URL): Try[Elem] = {
-      logger.info(s"loadXml with url=$url")
       for {
         response <- Try { Http(url.toString).asString }
         _ <- if (response.isSuccess) Success(())
