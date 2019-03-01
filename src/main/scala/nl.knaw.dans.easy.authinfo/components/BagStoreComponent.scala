@@ -46,15 +46,15 @@ trait BagStoreComponent {
 
     private def loadXml(url: URL): Try[Elem] = {
       for {
-        response <- Try { Http(url.toString).method("GET").asString }
+        response <- Try { Http(url.toString).asString }
         _ <- if (response.isSuccess) Success(())
              else Failure(HttpStatusException(url.toString, response))
-      } yield XML.load(response.body)
+      } yield XML.loadString(response.body)
     }
 
     private def loadBagInfo(url: URL): Try[BagInfo] = {
       for {
-        response <- Try { Http(url.toString).method("GET").asString }
+        response <- Try { Http(url.toString).asString }
         _ <- if (response.isSuccess) Success(())
              else Failure(HttpStatusException(url.toString, response))
       } yield response
