@@ -23,27 +23,29 @@ import nl.knaw.dans.lib.logging.servlet._
 import org.eclipse.jetty.http.HttpStatus._
 import org.json4s.native.JsonMethods.{ pretty, render }
 import org.scalatra._
-
-import scala.util.{ Failure, Success, Try }
 import scalaj.http.HttpResponse
 
-class EasyAuthInfoServlet(app: EasyAuthInfoApp) extends ScalatraServlet with DebugEnhancedLogging with ServletLogger with PlainLogFormatter {
+import scala.util.{ Failure, Success, Try }
+
+class EasyAuthInfoServlet(app: EasyAuthInfoApp) extends ScalatraServlet
+  with ServletLogger
+  with PlainLogFormatter
+  with LogResponseBodyOnError
+  with DebugEnhancedLogging {
 
   get("/") {
     contentType = "text/plain"
-    Ok("EASY Auth Info Service running...").logResponse
+    Ok("EASY Auth Info Service running...")
   }
 
   get("/:uuid/*") {
     contentType = "application/json"
-    val result = (getUUID, getPath) match {
+    (getUUID, getPath) match {
       case (Success(_), Success(None)) => BadRequest("file path is empty")
       case (Success(uuid), Success(Some(path))) => respond(uuid, path, app.rightsOf(uuid, path))
       case (Failure(t), _) => BadRequest(t.getMessage)
       case _ => InternalServerError("not expected exception")
     }
-    logger.info(s"returned status=${ result.status } for request [${ params.mkString(", ") }] response.body: ${ result.body.toString.toOneLiner }")
-    result.logResponse
   }
 
   private def getUUID = {
