@@ -48,7 +48,7 @@ class EasyAuthInfoServlet(app: EasyAuthInfoApp) extends ScalatraServlet
     }
   }
 
-  private def getUUID = {
+  private def getUUID: Try[UUID] = {
     Try { UUID.fromString(params("uuid")) }
   }
 
@@ -57,7 +57,7 @@ class EasyAuthInfoServlet(app: EasyAuthInfoApp) extends ScalatraServlet
     multiParams("splat").find(_.trim.nonEmpty).map(Paths.get(_))
   }
 
-  private def respond(uuid: UUID, path: Path, rights: Try[Option[CachedAuthInfo]]) = {
+  private def respond(uuid: UUID, path: Path, rights: Try[Option[CachedAuthInfo]]): ActionResult = {
     rights match {
       case Success(Some(CachedAuthInfo(json, Some(Failure(t))))) =>
         logger.error(s"cache update failed for [$uuid/$path] reason: ${ t.getMessage.toOneLiner }")
@@ -69,10 +69,7 @@ class EasyAuthInfoServlet(app: EasyAuthInfoApp) extends ScalatraServlet
         Ok(pretty(render(json)))
       case Success(None) => NotFound(s"$uuid/$path does not exist")
       case Failure(HttpStatusException(message, HttpResponse(_, SERVICE_UNAVAILABLE_503, _))) => ServiceUnavailable(message)
-      case Failure(HttpStatusException(message, HttpResponse(_, NOT_FOUND_404, _))) if message.startsWith("Bag ") => NotFound(s"$uuid does not exist")
-      case Failure(HttpStatusException(message, HttpResponse(_, NOT_FOUND_404, _))) =>
-        logger.error(s"invalid bag: $message")
-        InternalServerError("not expected exception")
+      case Failure(BagDoesNotExistException(uuid: UUID)) => NotFound(s"$uuid/$path does not exist")
       case Failure(t: InvalidBagException) =>
         logger.error(s"invalid bag: ${ t.getMessage }")
         InternalServerError("not expected exception")

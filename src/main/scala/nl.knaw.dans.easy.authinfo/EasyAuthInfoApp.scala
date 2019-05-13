@@ -30,6 +30,7 @@ import scala.xml.{ Elem, Node }
 trait EasyAuthInfoApp extends AutoCloseable with DebugEnhancedLogging with ApplicationWiring {
 
   def rightsOf(bagId: UUID, bagRelativePath: Path): Try[Option[CachedAuthInfo]] = {
+    logger.info(s"[$bagId] retrieving rightsOf item $bagRelativePath")
     authCache.search(s"$bagId/${bagRelativePath.escapePath}") match {
       case Success(Some(doc)) => Success(Some(CachedAuthInfo(FileItem.toJson(doc))))
       case Success(None) => fromBagStore(bagId, bagRelativePath)
@@ -59,12 +60,13 @@ trait EasyAuthInfoApp extends AutoCloseable with DebugEnhancedLogging with Appli
   }
 
   /** @param fullPath <UUID>/<bag-relative-path> */
-  private def extractUUID(fullPath: Path) = {
+  private def extractUUID(fullPath: Path): Try[UUID] = {
     Try(UUID.fromString(fullPath.getName(0).toString))
       .recoverWith { case t => Failure(new Exception(s"can't extract valid UUID from [$fullPath]", t)) }
   }
 
   private def fromBagStore(bagId: UUID, path: Path): Try[Option[CachedAuthInfo]] = {
+    logger.info(s"[$bagId] item for path $path not found in autCache, trying to retrieve item from bagStore")
     bagStore
       .loadFilesXML(bagId)
       .map(getFileNode(_, path))
@@ -78,7 +80,7 @@ trait EasyAuthInfoApp extends AutoCloseable with DebugEnhancedLogging with Appli
       }
   }
 
-  private def collectInfo(bagId: UUID, path: Path, fileNode: Node) = {
+  private def collectInfo(bagId: UUID, path: Path, fileNode: Node): Try[FileItem] = {
     for {
       ddm <- bagStore.loadDDM(bagId)
       ddmProfile <- getTag(ddm, "profile", bagId)
@@ -94,7 +96,7 @@ trait EasyAuthInfoApp extends AutoCloseable with DebugEnhancedLogging with Appli
       .recoverWith { case _ => Failure(InvalidBagException(s"<ddm:$tag> not found in $bagId/dataset.xml")) }
   }
 
-  private def getDepositor(bagInfoMap: BagInfo, bagId: UUID) = {
+  private def getDepositor(bagInfoMap: BagInfo, bagId: UUID): Try[String] = {
     Try(bagInfoMap("EASY-User-Account"))
       .recoverWith { case _ => Failure(InvalidBagException(s"'EASY-User-Account' (case sensitive) not found in $bagId/bag-info.txt")) }
   }
