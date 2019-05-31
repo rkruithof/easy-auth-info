@@ -5,6 +5,7 @@ Description=EASY Auth Info Service
 ExecStart=/bin/java \
    -Dlogback.configurationFile=/etc/opt/dans.knaw.nl/easy-auth-info/logback-service.xml \
    -Dapp.home=/opt/dans.knaw.nl/easy-auth-info \
+   -Dorg.scalatra.environment="production" \
    -jar /opt/dans.knaw.nl/easy-auth-info/bin/easy-auth-info.jar run-service
 
 # Java returns 143 even if the SIGTERM was handled correctly.
