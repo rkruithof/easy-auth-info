@@ -34,7 +34,7 @@
         <main-class>nl.knaw.dans.easy.authinfo.Command</main-class>
     </properties>
     <scm>
-        <developerConnection>scm:git:https://github.com/DANS-KNAW/easy-auth-info</developerConnection>
+        <developerConnection>scm:git:https://github.com/DANS-KNAW/${project.artifactId}</developerConnection>
         <tag>HEAD</tag>
     </scm>
     <dependencies>
