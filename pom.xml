@@ -20,7 +20,7 @@
     <parent>
         <groupId>nl.knaw.dans.shared</groupId>
         <artifactId>dans-scala-app-project</artifactId>
-        <version>4.0.0</version>
+        <version>5.0.0</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>nl.knaw.dans.easy</groupId>
@@ -105,10 +105,6 @@
             <artifactId>commons-io</artifactId>
         </dependency>
         <dependency>
-            <groupId>commons-daemon</groupId>
-            <artifactId>commons-daemon</artifactId>
-        </dependency>
-        <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
             <version>20.0</version>
@@ -167,12 +163,6 @@
                                 </goals>
                             </execution>
                         </executions>
-                        <configuration>
-                            <group>Applications/Archiving</group>
-                            <requires combine.children="append">
-                                <require>jsvc</require>
-                            </requires>
-                        </configuration>
                     </plugin>
                 </plugins>
             </build>
