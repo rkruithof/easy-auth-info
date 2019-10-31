@@ -30,12 +30,14 @@ import scala.xml.{ Elem, Node }
 trait EasyAuthInfoApp extends AutoCloseable with DebugEnhancedLogging with ApplicationWiring {
 
   def rightsOf(bagId: UUID, bagRelativePath: Path): Try[Option[CachedAuthInfo]] = {
-    logger.info(s"[$bagId] retrieving rightsOf item $bagRelativePath")
+    logger.info(s"[$bagId] retrieving rightsOf item ${bagRelativePath.escapePath}")
     authCache.search(s"$bagId/${bagRelativePath.escapePath}") match {
-      case Success(Some(doc)) => Success(Some(CachedAuthInfo(FileItem.toJson(doc))))
+      case Success(Some(doc)) =>
+        logger.info(s"[$bagId] Obtained rightsOf item for ${bagRelativePath.escapePath} from the authCache")
+        Success(Some(CachedAuthInfo(FileItem.toJson(doc))))
       case Success(None) => fromBagStore(bagId, bagRelativePath)
       case Failure(t) =>
-        logger.warn(s"cache lookup failed for [$bagId/${bagRelativePath.escapePath}] ${ Option(t.getMessage).getOrElse("") }")
+        logger.warn(s"[$bagId] cache lookup failed for [$bagId/${bagRelativePath.escapePath}] ${ Option(t.getMessage).getOrElse("") }")
         fromBagStore(bagId, bagRelativePath)
     }
   }
@@ -66,21 +68,21 @@ trait EasyAuthInfoApp extends AutoCloseable with DebugEnhancedLogging with Appli
   }
 
   private def fromBagStore(bagId: UUID, path: Path): Try[Option[CachedAuthInfo]] = {
-    logger.info(s"[$bagId] item for path $path not found in autCache, trying to retrieve item from bagStore")
+    logger.info(s"[$bagId] item for path ${path.escapePath} not found in authCache, trying to retrieve item from bagStore")
     bagStore
       .loadFilesXML(bagId)
       .map(getFileNode(_, path))
       .flatMap {
         case None => Success(None) // TODO cache repeatedly requested but not found bags/files?
         case Some(filesXmlItem) =>
-          collectInfo(bagId, path, filesXmlItem).map { fileItem =>
+          collectInfo(bagId, path.escapePath, filesXmlItem).map { fileItem =>
             val cacheUpdate = authCache.submit(fileItem.solrLiterals)
             Some(CachedAuthInfo(fileItem.json, Some(cacheUpdate)))
           }
       }
   }
 
-  private def collectInfo(bagId: UUID, path: Path, fileNode: Node): Try[FileItem] = {
+  private def collectInfo(bagId: UUID, path: String, fileNode: Node): Try[FileItem] = {
     for {
       ddm <- bagStore.loadDDM(bagId)
       ddmProfile <- getTag(ddm, "profile", bagId)

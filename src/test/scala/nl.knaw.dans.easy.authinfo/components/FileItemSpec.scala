@@ -26,7 +26,7 @@ class FileItemSpec extends TestSupportFixture {
 
   "constructor" should "produce proper json" in {
     val rights = FileRights(KNOWN.toString, ANONYMOUS.toString)
-    val fileItem = FileItem(randomUUID, Paths.get("some/file.txt"), "someone", rights, "1992-07-30")
+    val fileItem = FileItem(randomUUID, "some/file.txt", "someone", rights, "1992-07-30")
     pretty(render(fileItem.json)) shouldBe
       s"""{
          |  "itemId":"$randomUUID/some/file.txt",

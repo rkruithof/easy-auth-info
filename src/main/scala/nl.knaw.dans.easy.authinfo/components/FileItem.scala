@@ -28,7 +28,7 @@ import org.json4s.JsonDSL._
 
 import scala.collection.JavaConverters._
 
-case class FileItem(id: UUID, path: Path, owner: String, rights: FileRights, dateAvailable: String) extends DebugEnhancedLogging {
+case class FileItem(id: UUID, path: String, owner: String, rights: FileRights, dateAvailable: String) extends DebugEnhancedLogging {
 
   val solrLiterals: CacheLiterals = Seq(
     ("id", s"$id/$path"),
