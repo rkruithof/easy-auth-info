@@ -75,14 +75,14 @@ trait EasyAuthInfoApp extends AutoCloseable with DebugEnhancedLogging with Appli
       .flatMap {
         case None => Success(None) // TODO cache repeatedly requested but not found bags/files?
         case Some(filesXmlItem) =>
-          collectInfo(bagId, path.escapePath, filesXmlItem).map { fileItem =>
+          collectInfo(bagId, path, filesXmlItem).map { fileItem =>
             val cacheUpdate = authCache.submit(fileItem.solrLiterals)
             Some(CachedAuthInfo(fileItem.json, Some(cacheUpdate)))
           }
       }
   }
 
-  private def collectInfo(bagId: UUID, path: String, fileNode: Node): Try[FileItem] = {
+  private def collectInfo(bagId: UUID, path: Path, fileNode: Node): Try[FileItem] = {
     for {
       ddm <- bagStore.loadDDM(bagId)
       ddmProfile <- getTag(ddm, "profile", bagId)
