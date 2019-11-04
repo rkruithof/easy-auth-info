@@ -30,14 +30,14 @@ import scala.xml.{ Elem, Node }
 trait EasyAuthInfoApp extends AutoCloseable with DebugEnhancedLogging with ApplicationWiring {
 
   def rightsOf(bagId: UUID, bagRelativePath: Path): Try[Option[CachedAuthInfo]] = {
-    logger.info(s"[$bagId] retrieving rightsOf item ${bagRelativePath.escapePath}")
+    logger.info(s"[$bagId] retrieving rightsOf file $bagRelativePath")
     authCache.search(s"$bagId/${bagRelativePath.escapePath}") match {
       case Success(Some(doc)) =>
-        logger.info(s"[$bagId] Obtained rightsOf item for ${bagRelativePath.escapePath} from the authCache")
+        logger.info(s"[$bagId] Obtained rightsOf for file $bagRelativePath from the authCache")
         Success(Some(CachedAuthInfo(FileItem.toJson(doc))))
       case Success(None) => fromBagStore(bagId, bagRelativePath)
       case Failure(t) =>
-        logger.warn(s"[$bagId] cache lookup failed for [$bagId/${bagRelativePath.escapePath}] ${ Option(t.getMessage).getOrElse("") }")
+        logger.warn(s"[$bagId] cache lookup failed for file $bagRelativePath ${ Option(t.getMessage).getOrElse("") }")
         fromBagStore(bagId, bagRelativePath)
     }
   }
