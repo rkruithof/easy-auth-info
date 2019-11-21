@@ -33,20 +33,6 @@ ARGUMENTS
       -h, --help   Show help message
     ---
 
-
-HTTP service
-------------
-
-When started with the sub-command `run-service` a REST API becomes available with HTTP method `GET` only.
-In a path pattern `*` refers to any completion of the path, placeholders for variables start with a colon,
-and optional parts are enclosed in square brackets.
-
-Method   | Path       | Action
----------|------------|------------------------------------
-`GET`    | `/`        | Return a simple message to indicate that the service is up: "EASY Auth Info Service running..."
-`GET`    | `/:uuid/*` | Return the rights for the file from the bag with bag-id `:uuid` and bag local path `*`
-
-
 EXAMPLES
 --------
 
@@ -68,25 +54,9 @@ curl 'http://localhost:20170/40594b6d-8378-4260-b96b-13b57beadf7c/data/pakbon.xm
 INSTALLATION AND CONFIGURATION
 ------------------------------
 
-
 ### Depending on services
 
 * [easy-bag-store](https://github.com/DANS-KNAW/easy-bag-store/)
-
-
-### Steps
-
-1. Unzip the tarball to a directory of your choice, typically `/usr/local/`
-2. A new directory called easy-auth-info-<version> will be created
-3. Add the command script to your `PATH` environment variable by creating a symbolic link to it from a directory that is
-   on the path, e.g.
-
-        ln -s /usr/local/easy-auth-info-<version>/bin/easy-auth-info /usr/bin
-
-
-
-General configuration settings can be set in `cfg/application.properties` and logging can be configured
-in `cfg/logback.xml`. The available settings are explained in comments in aforementioned files.
 
 ### Security advice
 
@@ -109,9 +79,14 @@ Prerequisites:
 
 * Java 8 or higher
 * Maven 3.3.3 or higher
+* RPM
 
 Steps:
 
         git clone https://github.com/DANS-KNAW/easy-auth-info.git
         cd easy-auth-info
         mvn install
+
+If the `rpm` executable is found at `/usr/local/bin/rpm`, the build profile that includes the RPM
+packaging will be activated. If `rpm` is available, but at a different path, then activate it by using
+Maven's `-P` switch: `mvn -Pprm install`.
